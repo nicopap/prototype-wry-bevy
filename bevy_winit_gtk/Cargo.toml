@@ -12,6 +12,3 @@ accesskit_winit = { version = "0.14.4", default-features = false }
 approx = { version = "0.5", default-features = false }
 raw-window-handle = "0.5"
 winit = { version ="0.28.6" }
-
-[patch.crates-io]
-winit = { path = "../../winit-gtk", version = "0.28.6" }

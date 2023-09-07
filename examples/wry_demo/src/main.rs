@@ -1,17 +1,69 @@
 use bevy::prelude::*;
+use bevy_tao::GetWindow;
+use wry::webview::WebView;
 
+mod bridge;
+mod print_hierarchy;
+// mod webview;
+
+struct WryWebview(WebView);
+
+impl GetWindow for WryWebview {
+    fn get_window(&self) -> &bevy_tao::TaoWindow {
+        self.0.window()
+    }
+    fn wrap(window: bevy_tao::TaoWindow) -> Self {
+        WryWebview(WebView::new(window).unwrap())
+    }
+}
+
+fn main2() -> wry::Result<()> {
+    use wry::{
+        application::{
+            event::{Event, StartCause, WindowEvent},
+            event_loop::{ControlFlow, EventLoop},
+            window::WindowBuilder,
+        },
+        webview::WebViewBuilder,
+    };
+    let event_loop = EventLoop::new();
+    let window = WindowBuilder::new()
+        .with_title("Hello World")
+        .build(&event_loop)?;
+    let _webview = WebViewBuilder::new(window)?
+        .with_url("https://bevyengine.org")?
+        // .with_incognito(true)
+        .build()?;
+
+    event_loop.run(move |event, _, control_flow| {
+        *control_flow = ControlFlow::Wait;
+
+        match event {
+            Event::NewEvents(StartCause::Init) => println!("Wry has started!"),
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => *control_flow = ControlFlow::Exit,
+            _ => (),
+        }
+    });
+}
 fn main() {
+    let (bevy_wry_channels, wry_loop) = bridge::make_bridge();
+
     App::new()
         .add_plugins((
             DefaultPlugins.set(bevy::log::LogPlugin {
                 level: bevy::log::Level::INFO,
                 filter: "wgpu_core=warn".to_string(),
             }),
-            bevy_winit_gtk::WinitPlugin,
+            bevy_tao::TaoPlugin::<WryWebview>::default(),
         ))
         .insert_resource(ClearColor(Color::rgb(0., 0.1, 0.2)))
+        .insert_non_send_resource(bevy_wry_channels)
         .add_systems(Startup, setup)
         .add_systems(Update, (movement, animate_light_direction))
+        .add_systems(Last, bridge::bevy_bridge_system)
         .run();
 }
 

@@ -1,4 +1,4 @@
 check:
 	cargo clippy
 run:
-	cargo run --bin spotlight
+	cargo run --bin wry_demo
