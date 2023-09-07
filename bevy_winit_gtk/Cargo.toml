@@ -1,0 +1,17 @@
+[package]
+name = "bevy_winit_gtk"
+license = "MIT OR Apache-2.0"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bevy = { version = "0.11.2", default-features = false }
+accesskit_winit = { version = "0.14.4", default-features = false }
+approx = { version = "0.5", default-features = false }
+raw-window-handle = "0.5"
+winit = { version ="0.28.6" }
+
+[patch.crates-io]
+winit = { path = "../../winit-gtk", version = "0.28.6" }

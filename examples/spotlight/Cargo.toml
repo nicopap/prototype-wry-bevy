@@ -1,0 +1,23 @@
+[package]
+name = "spotlight"
+description = "The bevy_winit_gtk crate works"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "spotlight"
+path = "main.rs"
+
+[dependencies]
+bevy_winit_gtk = { path = "../../bevy_winit_gtk" }
+bevy = { version = "0.11.2", features = [
+  "bevy_pbr",
+  "tonemapping_luts",
+  "ktx2",
+  "zstd",
+] }
+
+[package.metadata.release]
+release = false

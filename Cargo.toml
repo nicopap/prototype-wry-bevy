@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = [
+  "bevy_winit_gtk",
+  "examples/*",
+]
+
+[workspace.package]
+edition = "2021"
+authors = ["Nicola Papale"]
+license = "MIT OR Apache-2.0"
