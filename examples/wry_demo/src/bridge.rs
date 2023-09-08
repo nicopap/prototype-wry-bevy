@@ -1,14 +1,10 @@
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::OnceLock;
 
 use bevy::prelude::*;
-use bevy_tao::TaoWindows;
 use wry::application::window::Window as TaoWindow;
 
 use crate::links::NewPage;
 use crate::WryWebview;
-
-pub static WRY_SENDER: OnceLock<WrySender> = OnceLock::new();
 
 /// Eventy sent to bevy from wry.
 pub enum Request {
@@ -23,7 +19,6 @@ pub enum Event {
 
 #[derive(Deref, Debug)]
 pub struct WrySender(Sender<Request>);
-
 pub struct BevyReceiver(Receiver<Request>);
 
 impl Drop for BevyReceiver {
@@ -38,19 +33,13 @@ impl Event {
             Event::NavigateToPage(page) => format!("window.location.assign({page:?})"),
         }
     }
-    fn to_wry(&self, webviews: &TaoWindows<WryWebview>) {
-        for webview in webviews.windows.values() {
-            webview.0.evaluate_script(&self.command()).unwrap();
-        }
+    fn to_wry(&self, webview: &WryWebview) {
+        webview.0.evaluate_script(&self.command()).unwrap();
     }
 }
 
 /// To use in `GetWindow` impl for `WryWebview`.
-pub fn wry_bridge(_window: &TaoWindow, request: String) {
-    let Some(bridge) = WRY_SENDER.get() else {
-        error!("wry sender not yet ready");
-        return;
-    };
+pub fn wry_bridge(bridge: &WrySender, _window: &TaoWindow, request: String) {
     let prefix = "NavigatedTo:";
     let prefix_len = prefix.len();
     if request.starts_with(prefix) {
@@ -63,12 +52,9 @@ pub fn wry_bridge(_window: &TaoWindow, request: String) {
     }
 }
 
-pub fn bevy_emit_events_system(
-    webviews: NonSend<TaoWindows<WryWebview>>,
-    mut events: EventReader<Event>,
-) {
+pub fn bevy_emit_events_system(webview: NonSend<WryWebview>, mut events: EventReader<Event>) {
     for event in events.iter() {
-        event.to_wry(&webviews);
+        event.to_wry(&webview);
     }
 }
 

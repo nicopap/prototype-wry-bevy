@@ -1,5 +1,9 @@
 use bevy::prelude::*;
-use bevy_tao::GetWindow;
+use bevy::window::{PrimaryWindow, WindowResolution};
+use bevy_tao::tao_runner;
+use wry::application::dpi::{PhysicalSize, Size};
+use wry::application::event_loop::EventLoop;
+use wry::application::window::{Fullscreen, Window as TaoWindow, WindowBuilder};
 use wry::webview::{WebView, WebViewBuilder};
 
 mod bridge;
@@ -9,51 +13,74 @@ mod links;
 
 pub struct WryWebview(WebView);
 
-impl GetWindow for WryWebview {
-    fn get_window(&self) -> &bevy_tao::TaoWindow {
-        self.0.window()
-    }
-    fn wrap(window: bevy_tao::TaoWindow) -> Self {
-        info!("Wrapping a window");
-        let webview = WebViewBuilder::new(window)
-            .unwrap()
-            .with_initialization_script(
-                r#"setTimeout(() => {
-                    var links = Array.from(document.links);
-                    document.querySelector("main").style = "background: transparent!important";
-                    document.querySelector(".layout").style = "background: transparent!important";
-                    window.ipc.postMessage(`NavigatedTo:${links.join(',')}`);
-                }, 400);
-                "#,
-            )
-            .with_url("https://bevyengine.org")
-            .unwrap()
-            .with_ipc_handler(bridge::wry_bridge)
-            .with_transparent(true)
-            .with_visible(false)
-            .build()
-            .unwrap();
-        WryWebview(webview)
-    }
-}
-
 fn main() {
-    let (bevy_receiver, wry_sender) = bridge::make_bridge();
-    bridge::WRY_SENDER.set(wry_sender).unwrap();
-
     App::new()
         .add_plugins((
-            DefaultPlugins.set(bevy::log::LogPlugin {
-                level: bevy::log::Level::INFO,
-                filter: "wgpu_core=warn,wgpu_hal=warn".to_string(),
-            }),
-            bevy_tao::TaoPlugin::<WryWebview>::default(),
+            DefaultPlugins
+                .set(bevy::log::LogPlugin {
+                    level: bevy::log::Level::INFO,
+                    filter: "wgpu_core=warn,wgpu_hal=warn".to_string(),
+                })
+                .set(bevy::window::WindowPlugin {
+                    primary_window: Some(Window {
+                        resolution: WindowResolution::new(1280., 720.),
+                        ..default()
+                    }),
+                    ..default()
+                }),
+            bevy_tao::TaoPlugin::<TaoWindow>::default(),
             links::LinksPlugin,
         ))
-        .insert_resource(ClearColor(Color::rgba(0., 0., 0., 0.)))
-        .insert_non_send_resource(bevy_receiver)
         .add_event::<bridge::Event>()
-        .add_systems(Last, bridge::bevy_read_requests_system)
+        .add_systems(Last, (sync_window, bridge::bevy_read_requests_system))
         .add_systems(PostUpdate, bridge::bevy_emit_events_system)
+        .set_runner(|mut app| {
+            setup_webview(&mut app);
+            tao_runner::<TaoWindow>(app);
+        })
         .run();
+}
+fn setup_webview(app: &mut App) {
+    let (bevy_receiver, wry_sender) = bridge::make_bridge();
+    let event_loop = app.world.non_send_resource::<EventLoop<()>>();
+
+    let webview_window = WindowBuilder::new()
+        .with_transparent(true)
+        .with_inner_size(PhysicalSize::new(1280., 720.))
+        // .with_visible(false)
+        .with_always_on_top(true)
+        .build(&event_loop)
+        .unwrap();
+    let webview = WebViewBuilder::new(webview_window)
+        .unwrap()
+        .with_initialization_script(
+            r#"setTimeout(() => {
+                    var links = Array.from(document.links);
+                    var to_hide = document.querySelectorAll("main, html, .layout, body");
+                    to_hide.forEach((item) => item.style = "background: transparent");
+                    window.ipc.postMessage(`NavigatedTo:${links.join(',')}`);
+                }, 2);
+                "#,
+        )
+        .with_url("https://bevyengine.org")
+        .unwrap()
+        .with_ipc_handler(move |w, s| bridge::wry_bridge(&wry_sender, w, s))
+        .with_transparent(true)
+        .build()
+        .unwrap();
+
+    app.insert_non_send_resource(WryWebview(webview))
+        .insert_non_send_resource(bevy_receiver);
+}
+
+fn sync_window(
+    main_window: Query<&Window, (With<PrimaryWindow>, Changed<Window>)>,
+    webview: NonSend<WryWebview>,
+) {
+    let Ok(_window) = main_window.get_single() else {
+        return;
+    };
+    let wv_window = webview.0.window();
+
+    info!("Primary window change, should update the webview window, but nahh");
 }
