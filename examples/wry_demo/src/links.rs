@@ -98,7 +98,10 @@ fn spawn_links(
     let Some(new_page) = new_page.iter().next() else {
         return;
     };
-    info!("Got NewPage request: {new_page:?}");
+    info!(
+        "Got NewPage request, spawning {} links",
+        new_page.links.len()
+    );
     let mut rng = rand::thread_rng();
     for entity in &pre_existing_links {
         commands.entity(entity).despawn();

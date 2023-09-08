@@ -21,6 +21,7 @@ impl GetWindow for WryWebview {
                 r#"setTimeout(() => {
                     var links = Array.from(document.links);
                     document.querySelector("main").style = "background: transparent!important";
+                    document.querySelector(".layout").style = "background: transparent!important";
                     window.ipc.postMessage(`NavigatedTo:${links.join(',')}`);
                 }, 400);
                 "#,

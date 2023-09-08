@@ -28,7 +28,7 @@ pub struct BevyReceiver(Receiver<Request>);
 
 impl Drop for BevyReceiver {
     fn drop(&mut self) {
-        error!("Dropping the bevy receiver, very sus");
+        error!("Dropping the bevy receiver, If this isn't the last log message, this is very suss");
     }
 }
 
@@ -54,7 +54,7 @@ pub fn wry_bridge(_window: &TaoWindow, request: String) {
     let prefix = "NavigatedTo:";
     let prefix_len = prefix.len();
     if request.starts_with(prefix) {
-        info!("recognized request: {request}");
+        info!("recognized request NavigatedTo");
         let links = &request[prefix_len..];
         let links: Vec<_> = links.split(',').map(str::to_string).collect();
         bridge.send(Request::SpawnNewLinks(links)).unwrap();
@@ -77,7 +77,7 @@ pub fn bevy_read_requests_system(world: &mut World) {
     for request in receiver_resource.0.try_iter() {
         match request {
             Request::SpawnNewLinks(links) => {
-                info!("Got request: {links:?}");
+                info!("Got request: SpawnNewLinks");
                 world.send_event(NewPage { links })
             }
         }
