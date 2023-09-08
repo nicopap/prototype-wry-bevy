@@ -1,147 +1,91 @@
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::OnceLock;
 
-use bevy::{
-    ecs::archetype::{Archetype, ArchetypeEntity},
-    prelude::*,
-};
+use bevy::prelude::*;
 use bevy_tao::TaoWindows;
-use wry::application::{
-    event::{Event as WryEvent, StartCause, WindowEvent},
-    event_loop::{ControlFlow, EventLoopWindowTarget},
-};
-use wry::webview::RequestAsyncResponder;
+use wry::application::window::Window as TaoWindow;
 
+use crate::links::NewPage;
 use crate::WryWebview;
 
-static WRY_SENDER: OnceLock<WrySender> = OnceLock::new();
+pub static WRY_SENDER: OnceLock<WrySender> = OnceLock::new();
 
-struct WrySender(Sender<Request>);
-
-pub struct BevyChannels {
-    from_wry: Receiver<Request>,
-    to_wry: Sender<Event>,
+/// Eventy sent to bevy from wry.
+pub enum Request {
+    SpawnNewLinks(Vec<String>),
 }
 
 /// Events sent from bevy to wry.
+#[derive(Event)]
 pub enum Event {
-    EntityName(Entity, String),
-    EntityCount(u32),
-    Entities(Box<[Entity]>),
+    NavigateToPage(String),
 }
+
+#[derive(Deref, Debug)]
+pub struct WrySender(Sender<Request>);
+
+pub struct BevyReceiver(Receiver<Request>);
+
+impl Drop for BevyReceiver {
+    fn drop(&mut self) {
+        error!("Dropping the bevy receiver, very sus");
+    }
+}
+
 impl Event {
     fn command(&self) -> String {
-        let str = 
-    match self {
-        Event::EntityName(_,_) => {
-            "console.log(\"EntityName\")"
-        },
-        Event::EntityCount(_) => {
-            "console.log(\"EntityCount\")"
-        },
-        Event::Entities(_) => {
-            "console.log(\"Entities\")"
-        },
-    };
-        str.to_string()
+        match self {
+            Event::NavigateToPage(page) => format!("window.location.assign({page:?})"),
+        }
+    }
+    fn to_wry(&self, webviews: &TaoWindows<WryWebview>) {
+        for webview in webviews.windows.values() {
+            webview.0.evaluate_script(&self.command()).unwrap();
+        }
     }
 }
-/// Eventy sent to bevy from wry.
-pub enum Request {
-    PrintHierarchy,
-    GetEntities,
-    GetEntityName(Entity),
-    GetEntityCount,
-}
 
-pub fn wry_bridge(request: wry::http::Request<Vec<u8>>, responder: RequestAsyncResponder) {
+/// To use in `GetWindow` impl for `WryWebview`.
+pub fn wry_bridge(_window: &TaoWindow, request: String) {
     let Some(bridge) = WRY_SENDER.get() else {
-        eprintln!("wry sender not yet ready");
+        error!("wry sender not yet ready");
         return;
     };
-    let path = request.uri().path();
-}
-
-fn to_wry(world: &mut World, event: Event) {
-    let Some(webviews) = world.get_non_send_resource::<TaoWindows<WryWebview>>() else {
-        return;
-    };
-    for webview in webviews.windows.values() {
-        webview.0.evaluate_script(&event.command());
+    let prefix = "NavigatedTo:";
+    let prefix_len = prefix.len();
+    if request.starts_with(prefix) {
+        info!("recognized request: {request}");
+        let links = &request[prefix_len..];
+        let links: Vec<_> = links.split(',').map(str::to_string).collect();
+        bridge.send(Request::SpawnNewLinks(links)).unwrap();
+    } else {
+        error!("unrecognized request: {request}");
     }
 }
-pub fn bevy_bridge_system(world: &mut World) {
-    let channels = world.remove_non_send_resource();
-    let Some(BevyChannels { from_wry, to_wry: _ }) = &channels else {
-        return;
-    };
-    for request in from_wry.try_iter() {
-        match request {
-            Request::PrintHierarchy => {
-                let mut q = world.query_filtered::<Entity, Without<Parent>>();
-                for entity in q.iter(world) {
-                    println!("{entity:?}");
-                }
-            }
-            Request::GetEntities => {
-                let archetypes = world.archetypes();
-                let entities = archetypes.iter().flat_map(Archetype::entities);
-                let entities: Vec<_> = entities.map(ArchetypeEntity::entity).collect();
 
-                to_wry(world, Event::Entities(entities.into()));
-            }
-            Request::GetEntityName(entity) => {
-                let mut q = world.query::<&Name>();
-                let Ok(name) = q.get(world, entity) else {
-                    continue;
-                };
-                to_wry(world, Event::EntityName(entity, name.to_string()));
-            }
-            Request::GetEntityCount => {
-                to_wry(world, Event::EntityCount(world.entities().len()));
-            }
-        }
-    }
-    world.insert_non_send_resource(channels);
-}
-
-pub fn make_bridge() -> (
-    BevyChannels,
-    impl FnMut(WryEvent<'_, ()>, &EventLoopWindowTarget<()>, &mut ControlFlow) + 'static,
+pub fn bevy_emit_events_system(
+    webviews: NonSend<TaoWindows<WryWebview>>,
+    mut events: EventReader<Event>,
 ) {
-    let (write_from_bevy, read_from_bevy) = channel();
-    let (write_from_wry, read_from_wry) = channel();
-
-    let bevy_wry_channel = BevyChannels {
-        to_wry: write_from_bevy,
-        from_wry: read_from_wry,
-    };
-    (bevy_wry_channel, move |event, _, control_flow: &mut _| {
-        *control_flow = ControlFlow::Wait;
-
-        let to_bevy = &write_from_wry;
-        let from_bevy = &read_from_bevy;
-
-        match event {
-            WryEvent::NewEvents(StartCause::Init) => println!("Wry has started!"),
-            WryEvent::MainEventsCleared => {
-                react_to_bevy_events(from_bevy, to_bevy);
-            }
-            WryEvent::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => *control_flow = ControlFlow::Exit,
-            _ => (),
-        }
-    })
+    for event in events.iter() {
+        event.to_wry(&webviews);
+    }
 }
 
-fn react_to_bevy_events(from_bevy: &Receiver<Event>, _to_bevy: &Sender<Request>) {
-    for events in from_bevy.try_iter() {
-        match events {
-            Event::EntityName(_, _) => todo!(),
-            Event::EntityCount(_) => todo!(),
-            Event::Entities(_) => todo!(),
+pub fn bevy_read_requests_system(world: &mut World) {
+    let receiver_resource: BevyReceiver = world.remove_non_send_resource().unwrap();
+    for request in receiver_resource.0.try_iter() {
+        match request {
+            Request::SpawnNewLinks(links) => {
+                info!("Got request: {links:?}");
+                world.send_event(NewPage { links })
+            }
         }
     }
+    world.insert_non_send_resource(receiver_resource);
+}
+
+pub fn make_bridge() -> (BevyReceiver, WrySender) {
+    let (wry_sender, bevy_receiver) = channel();
+    (BevyReceiver(bevy_receiver), WrySender(wry_sender))
 }

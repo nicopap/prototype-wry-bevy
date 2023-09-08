@@ -1,5 +1,4 @@
 #![allow(clippy::type_complexity)]
-#![warn(missing_docs)]
 //! `bevy::tao` provides utilities to handle window creation and the eventloop through [`tao`]
 //!
 //! Most commonly, the [`taoPlugin`] is used as part of
@@ -31,7 +30,7 @@ use bevy::input::{
     mouse::{MouseButtonInput, MouseMotion, MouseScrollUnit, MouseWheel},
     touch::TouchInput,
 };
-use bevy::log::{error, info, trace, warn};
+use bevy::log::{error, info, trace};
 use bevy::math::{ivec2, DVec2, Vec2};
 use bevy::utils::Instant;
 use bevy::window::{

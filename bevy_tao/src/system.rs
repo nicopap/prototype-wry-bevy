@@ -61,10 +61,10 @@ pub(crate) fn create_window<'a, W: GetWindow>(
             .set_scale_factor(tao_window.scale_factor());
         commands
             .entity(entity)
-            .insert(dbg!(RawHandleWrapper {
+            .insert(RawHandleWrapper {
                 window_handle: tao_window.raw_window_handle(),
                 display_handle: tao_window.raw_display_handle(),
-            }))
+            })
             .insert(CachedWindow {
                 window: window.clone(),
             });
