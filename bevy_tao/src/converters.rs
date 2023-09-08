@@ -162,7 +162,7 @@ pub fn convert_virtual_key_code(virtual_key_code: Key) -> Option<KeyCode> {
         Key::ArrowDown => KeyCode::Down,
         Key::Backspace => KeyCode::Back,
         Key::Enter => KeyCode::Return,
-        Key::Space => KeyCode::Space,
+        Key::Space | Key::Character(" ") => KeyCode::Space,
         Key::Compose => KeyCode::Compose,
         Key::NumLock => KeyCode::Numlock,
         Key::Convert => KeyCode::Convert,

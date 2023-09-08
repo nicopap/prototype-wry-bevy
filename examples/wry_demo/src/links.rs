@@ -77,7 +77,7 @@ const SATURATION_SELECTED: f32 = 0.9;
 const LIGHTNESS_SELECTED: f32 = 0.7;
 const ALPHA: f32 = 0.92;
 
-const SHOWCASE_TIMER_SECS: f32 = 3.0;
+const SHOWCASE_TIMER_SECS: f32 = 1.2;
 
 #[derive(Resource)]
 struct BevyIcon(Handle<Image>);
@@ -218,7 +218,7 @@ fn navigate(
     let entity = link_selection.order[link_selection.idx];
     if let Ok(link) = query.get(entity) {
         let target = link.target.clone();
-        events.send(bridge::Event::NavigateToPage(link.target.clone()));
+        events.send(bridge::Event::NavigateToPage(target));
     }
 }
 /// Applies gravity to all entities with velocity
