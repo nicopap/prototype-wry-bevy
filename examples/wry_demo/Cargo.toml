@@ -15,7 +15,7 @@ bevy = { version = "0.11.2", default-features = false, features = [
   "png",
   "default_font",
 ] }
-wry = "0.32.0"
+wry = { version = "0.32.0", default-features = false, features = ["winit"] }
 rand = "0.8.5"
 
 

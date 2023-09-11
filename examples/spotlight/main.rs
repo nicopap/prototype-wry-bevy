@@ -4,8 +4,8 @@ fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins.set(bevy::log::LogPlugin {
-                level: bevy::log::Level::INFO,
-                filter: "wgpu_core=warn".to_string(),
+                level: bevy::log::Level::TRACE,
+                filter: "wgpu_core=warn,naga_oil=warn,naga=warn".to_string(),
             }),
             bevy_winit_gtk::WinitPlugin,
         ))

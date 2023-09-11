@@ -1,11 +1,11 @@
+#[cfg(feature = "accessibility")]
 use bevy::a11y::AccessibilityRequested;
 use bevy::ecs::{
     entity::Entity,
     event::EventWriter,
     prelude::{Changed, Component, Resource},
     removal_detection::RemovedComponents,
-    system::{Commands, NonSendMut, Query, ResMut},
-    world::Mut,
+    system::{NonSendMut, Query},
 };
 use bevy::utils::{
     tracing::{error, info, warn},
@@ -19,10 +19,12 @@ use winit::{
     event_loop::EventLoopWindowTarget,
 };
 
+#[cfg(feature = "accessibility")]
+use crate::accessibility::{AccessKitAdapters, WinitActionHandlers};
 #[cfg(target_arch = "wasm32")]
 use crate::web_resize::{CanvasParentResizeEventChannel, WINIT_CANVAS_SELECTOR};
+use crate::FullWindowParams;
 use crate::{
-    accessibility::{AccessKitAdapters, WinitActionHandlers},
     converters::{self, convert_window_level, convert_window_theme, convert_winit_theme},
     get_best_videomode, get_fitting_videomode, WinitWindows,
 };
@@ -32,18 +34,10 @@ use crate::{
 ///
 /// This will default any necessary components if they are not already added.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn create_window<'a>(
-    mut commands: Commands,
-    event_loop: &EventLoopWindowTarget<()>,
-    created_windows: impl Iterator<Item = (Entity, Mut<'a, Window>)>,
-    mut event_writer: EventWriter<WindowCreated>,
-    mut winit_windows: NonSendMut<WinitWindows>,
-    mut adapters: NonSendMut<AccessKitAdapters>,
-    mut handlers: ResMut<WinitActionHandlers>,
-    mut accessibility_requested: ResMut<AccessibilityRequested>,
-    #[cfg(target_arch = "wasm32")] event_channel: ResMut<CanvasParentResizeEventChannel>,
-) {
-    for (entity, mut window) in created_windows {
+pub(crate) fn create_window<'a>(event_loop: &EventLoopWindowTarget<()>, params: FullWindowParams) {
+    let (mut commands, mut created_windows, mut event_writer, mut winit_windows, mut accessibility) =
+        params.0;
+    for (entity, mut window) in created_windows.iter_mut() {
         if winit_windows.get_window(entity).is_some() {
             continue;
         }
@@ -54,14 +48,8 @@ pub(crate) fn create_window<'a>(
             entity
         );
 
-        let winit_window = winit_windows.create_window(
-            event_loop,
-            entity,
-            &window,
-            &mut adapters,
-            &mut handlers,
-            &mut accessibility_requested,
-        );
+        let winit_window =
+            winit_windows.create_window(&event_loop, entity, &window, &mut accessibility);
 
         if let Some(theme) = winit_window.theme() {
             window.window_theme = Some(convert_winit_theme(theme));

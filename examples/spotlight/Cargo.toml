@@ -11,7 +11,7 @@ name = "spotlight"
 path = "main.rs"
 
 [dependencies]
-bevy_winit_gtk = { path = "../../bevy_winit_gtk" }
+bevy_winit_gtk = { path = "../../bevy_winit_gtk", default-features = false }
 bevy = { version = "0.11.2", default-features = false, features = [
   "bevy_pbr",
   "tonemapping_luts",
