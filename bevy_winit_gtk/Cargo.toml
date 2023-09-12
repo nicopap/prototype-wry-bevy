@@ -17,9 +17,8 @@ accesskit_winit = { version = "0.14.4", default-features = false, optional = tru
 winit = { version = "0.28.1", optional = true }
 
 [dependencies.winit-gtk]
-version = "0.28.1"
-git = "https://github.com/wusyong/winit-gtk.git"
-rev = "56203cb"
 optional = true
-
-# wry = { version = "0.32.0", default-features = false, features = ["winit"] }
+version = "0.28.1"
+# path = "../../winit-gtk"
+# git = "https://github.com/wusyong/winit-gtk.git"
+# rev = "56203cb"

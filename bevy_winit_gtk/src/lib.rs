@@ -236,6 +236,7 @@ struct CursorEvents<'w> {
 // }
 
 /// Stores state that must persist between frames.
+#[derive(Debug)]
 struct WinitPersistentState {
     /// Tracks whether or not the application is active or suspended.
     active: bool,
@@ -274,6 +275,7 @@ pub fn winit_runner(mut app: App) {
     let mut app_exit_event_reader = ManualEventReader::<AppExit>::default();
     let mut redraw_event_reader = ManualEventReader::<RequestRedraw>::default();
     let mut winit_state = WinitPersistentState::default();
+    winit_state.active = true;
     app.world
         .insert_non_send_resource(event_loop.create_proxy());
 

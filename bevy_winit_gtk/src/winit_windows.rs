@@ -42,9 +42,10 @@ impl WinitWindows {
     ) -> &winit::window::Window {
         let mut winit_window_builder = winit::window::WindowBuilder::new();
 
-        // Due to a UIA limitation, winit windows need to be invisible for the
-        // AccessKit adapter is initialized.
-        winit_window_builder = winit_window_builder.with_visible(false);
+        // Note that this is disabled because `winit-gtk` doesn't work if
+        // the window is made invisible, and we can't draw on the window surface.
+        #[cfg(feature = "accessibility")]
+        let winit_window_builder = winit_window_builder.with_visible(false);
 
         winit_window_builder = match window.mode {
             WindowMode::BorderlessFullscreen => winit_window_builder.with_fullscreen(Some(

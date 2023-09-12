@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, WindowResolution};
-use bevy_tao::tao_runner;
+use bevy_winit_gtk::winit_runner;
 use wry::application::dpi::{PhysicalSize, Size};
 use wry::application::event_loop::EventLoop;
 use wry::application::window::{Fullscreen, Window as TaoWindow, WindowBuilder};
@@ -28,7 +28,7 @@ fn main() {
                     }),
                     ..default()
                 }),
-            bevy_tao::TaoPlugin::<TaoWindow>::default(),
+            bevy_winit_gtk::WinitPlugin,
             links::LinksPlugin,
         ))
         .add_event::<bridge::Event>()
@@ -36,7 +36,7 @@ fn main() {
         .add_systems(PostUpdate, bridge::bevy_emit_events_system)
         .set_runner(|mut app| {
             setup_webview(&mut app);
-            tao_runner::<TaoWindow>(app);
+            winit_runner(app);
         })
         .run();
 }
@@ -47,8 +47,8 @@ fn setup_webview(app: &mut App) {
     let webview_window = WindowBuilder::new()
         .with_transparent(true)
         .with_inner_size(PhysicalSize::new(1280., 720.))
-        // .with_visible(false)
-        .with_always_on_top(true)
+        .with_visible(false)
+        // .with_always_on_top(true)
         .build(&event_loop)
         .unwrap();
     let webview = WebViewBuilder::new(webview_window)
@@ -81,6 +81,4 @@ fn sync_window(
         return;
     };
     let wv_window = webview.0.window();
-
-    info!("Primary window change, should update the webview window, but nahh");
 }
